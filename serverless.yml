@@ -1,0 +1,62 @@
+service: candidate
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+  region: us-east-1
+  stage: dev
+  environment:
+    CANDIDATE_TABLE: ${self:service}-${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+      Resource: "*"
+
+functions:
+  candidateSubmission:
+    handler: api/candidates/submit.submit
+    memorySize: 128
+    description: Submit candidate information.
+    events:
+      - http:
+          path: candidates
+          method: post
+
+  listCandidates:
+    handler: api/candidates/list.list
+    memorySize: 128
+    description: List all candidates.
+    events:
+      - http:
+          path: candidates
+          method: get
+
+  candidateDetails:
+    handler: api/candidates/get.get
+    memorySize: 128
+    description: Get candidate details by ID.
+    events:
+      - http:
+          path: candidates/{id}
+          method: get
+
+resources:
+  Resources:
+    CandidatesDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      Properties:
+        TableName: ${self:provider.environment.CANDIDATE_TABLE}
+        AttributeDefinitions:
+          - AttributeName: "id"
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: "id"
+            KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
